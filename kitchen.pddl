@@ -37,7 +37,7 @@
                     (open ?d) (in ?b ?d)
                     (not (occupied ?r)) (not (held ?b)))
     :effect (and 
-                (open ?d) (not (in ?b ?d))
+                (not (in ?b ?d))
                 (occupied ?r) (held ?b))
     )
 
@@ -65,7 +65,7 @@
                     (occupied ?r) (held ?b))
                     
     :effect (and 
-                (open ?d) (in ?b ?d)
+                (in ?b ?d)
                 (not (occupied ?r)) (not (held ?b)))
     )
 
@@ -73,48 +73,16 @@
     :precondition (and 
                     (not (open ?d)) (not (occupied ?r)))
     :effect (and 
-                (open ?d) (not (occupied ?r)))
+                (open ?d) )
     )
 
   (:action closeDrawer :parameters (?r - robot ?d - drawer)
     :precondition (and 
                     (open ?d) (not (occupied ?r)))
     :effect (and 
-                (not (open ?d)) (not (occupied ?r)))
+                (not (open ?d)))
     ) 
 
 )
 
 
-; (define (domain dinner)
-;   (:requirements :strips)
-;   (:predicates
-;     (clean)
-;     (dinner)
-;     (quiet)
-;     (present)
-;     (garbage)
-;   )
-;   (:action cook
-;     :precondition (clean)
-;     :effect (dinner)
-;   )
-;   (:action wrap
-;     :precondition (quiet)
-;     :effect (present)
-;   )
-;   (:action carry
-;     :precondition (garbage)
-;     :effect (and
-;       (not (garbage))
-;       (not (clean))
-;     )
-;   )
-;   (:action dolly
-;     :precondition (garbage)
-;     :effect (and
-;       (not (garbage))
-;       (not (quiet))
-;     )
-;   )
-; )
