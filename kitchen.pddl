@@ -1,7 +1,6 @@
 ; This is a comment line
 (define (domain kitchen)
-  (:requirements :strips :negative-preconditions :disjunctive-preconditions)
-
+  (:requirements :strips :negative-preconditions :disjunctive-preconditions :typing) 
   (:types
     drawer
     top
@@ -18,7 +17,7 @@
     (right ?x ?y)
     
     (in ?b - box ?d - drawer)
-    (on ?x -box ?t - top)
+    (on ?b - box ?t - top)
     (open ?d - drawer)
 
     (sugar ?b - box)

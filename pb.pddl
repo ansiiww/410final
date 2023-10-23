@@ -19,5 +19,10 @@
     (on b2 t1) ;spam on burner
   )
 
-  (:goal (and (on b1 t1) (in b2 d1)))
+  (:goal 
+    (and 
+      (on b1 t1) 
+      (in b2 d1)
+    )
+  )
 )
