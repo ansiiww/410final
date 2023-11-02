@@ -1,6 +1,6 @@
 ; This is a comment line
 (define (domain kitchen)
-  (:requirements :strips :negative-preconditions :disjunctive-preconditions :typing) 
+  (:requirements :strips :negative-preconditions :typing) 
   (:types
     drawer
     top
