@@ -2,7 +2,7 @@
   (:domain kitchen)
   (:objects
     d1 d2 d3 - drawer
-    t1 t2 - top
+    t1 t2 t3 - top
     c1 - cabinet
     b1 b2 - box
 
@@ -16,7 +16,7 @@
     (counter t1)
 
     (on b1 t2) ;sugar box on stove
-    (on b2 t1) ;spam on burner
+    (on b2 t1) ;spam on countertop
   )
 
   (:goal 

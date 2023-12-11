@@ -31,7 +31,7 @@
     
   )
 
-  (:action gripFromDrawer :parameters (?r - robot ?b - box ?d - drawer)
+  (:action grip_From_Drawer :parameters (?r - robot ?b - box ?d - drawer)
     :precondition (and
                     (open ?d) (in ?b ?d)
                     (not (occupied ?r)) (not (held ?b)))
@@ -40,7 +40,7 @@
                 (occupied ?r) (held ?b))
     )
 
-  (:action gripFromTop :parameters (?r - robot ?b - box ?t - top)
+  (:action grip_From_Top :parameters (?r - robot ?b - box ?t - top)
     :precondition (and
                     (on ?b ?t)
                     (not (occupied ?r)) (not (held ?b)))
@@ -49,7 +49,7 @@
                 (occupied ?r) (held ?b))
     )
 
-  (:action dropOnTop :parameters (?r - robot ?b - box ?t - top)
+  (:action drop_On_Top :parameters (?r - robot ?b - box ?t - top)
     :precondition (and
                     (not (on ?b ?t))
                     (occupied ?r) (held ?b))
@@ -58,7 +58,7 @@
                 (not (occupied ?r)) (not (held ?b)))
     )
 
-  (:action dropInDrawer :parameters (?r - robot ?b - box ?d - drawer)
+  (:action drop_In_Drawer :parameters (?r - robot ?b - box ?d - drawer)
     :precondition (and
                     (open ?d) (not (in ?b ?d))
                     (occupied ?r) (held ?b))
@@ -68,14 +68,14 @@
                 (not (occupied ?r)) (not (held ?b)))
     )
 
-  (:action openDrawer :parameters (?r - robot ?d - drawer)
+  (:action open_Drawer :parameters (?r - robot ?d - drawer)
     :precondition (and 
                     (not (open ?d)) (not (occupied ?r)))
     :effect (and 
                 (open ?d) )
     )
 
-  (:action closeDrawer :parameters (?r - robot ?d - drawer)
+  (:action close_Drawer :parameters (?r - robot ?d - drawer)
     :precondition (and 
                     (open ?d) (not (occupied ?r)))
     :effect (and 
