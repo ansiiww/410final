@@ -308,8 +308,8 @@ def execute_act(act, world, id=0, algs='rrt'):
     init_base_pos = get_joint_positions(world.robot, world.base_joints)
     (x, y, theta) = init_base_pos
     act_path = []
-    base_path.insert(0, init_base_pos)
-    for next_pos in base_path:
+    # base_path.insert(0, init_base_pos)
+    for next_pos in base_path[1:]:
         (new_x, new_y, new_theta) = next_pos
         new_theta = normalize_angle(new_theta)
         dx = new_x - x
