@@ -19,11 +19,7 @@ class TreeNode(object):
             sequence.append(node)
             node = node.parent
         return sequence[::-1]
-
-    def clear(self):
-        self.node_handle = None
-        self.edge_handle = None
-
+    
     def __str__(self):
         return 'TreeNode(' + str(self.config) + ')'
     __repr__ = __str__
