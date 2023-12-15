@@ -1,143 +1,141 @@
+from __future__ import print_function
+
 from random import random
 import time
-from motion_planner import *
-import numpy as np
-#   Parameters
-#
-#   Define the step size.  Also set a maximum number of nodes...
-#
-dstep = 1.5
-Nmax  = 1000
-r_one = 3
-r_two = 1
 
-RRT_ITERATIONS = 20
 RED = (1, 0, 0)
 INF = float('inf')
 
-def apply_alpha(color, alpha=1.):
-   return tuple(color[:3]) + (alpha,)
+EPSILON = 1e-6
+PRINT_FREQUENCY = 100
 
-class TreeNode(object):
+class OptimalNode(object):
 
-    def __init__(self, config, parent=None):
+    def __init__(self, config, parent=None, d=0, path=[], iteration=None):
         self.config = config
         self.parent = parent
+        self.children = set()
+        self.d = d
+        self.path = path
+        if parent is not None:
+            self.cost = parent.cost + d
+            self.parent.children.add(self)
+        else:
+            self.cost = d
+        self.solution = False
+        self.creation = iteration
+        self.last_rewire = iteration
+
+    def set_solution(self, solution):
+        if self.solution is solution:
+            return
+        self.solution = solution
+        if self.parent is not None:
+            self.parent.set_solution(solution)
 
     def retrace(self):
-        sequence = []
-        node = self
-        while node is not None:
-            sequence.append(node)
-            node = node.parent
-        return sequence[::-1]
+        if self.parent is None:
+            return self.path + [self.config]
+        return self.parent.retrace() + self.path + [self.config]
 
-    def clear(self):
-        self.node_handle = None
-        self.edge_handle = None
+    def rewire(self, parent, d, path, iteration=None):
+        if self.solution:
+            self.parent.set_solution(False)
+        self.parent.children.remove(self)
+        self.parent = parent
+        self.parent.children.add(self)
+        if self.solution:
+            self.parent.set_solution(True)
+        self.d = d
+        self.path = path
+        self.update()
+        self.last_rewire = iteration
+
+    def update(self):
+        self.cost = self.parent.cost + self.d
+        for n in self.children:
+            n.update()
 
     def __str__(self):
-        return 'TreeNode(' + str(self.config) + ')'
+        return self.__class__.__name__ + '(' + str(self.config) + ')'
     __repr__ = __str__
 
 
-def irange(start, stop=None, step=1):  # np.arange
-    if stop is None:
-        stop = start
-        start = 0
-    while start < stop:
-        yield start
-        start += step
-
-def argmin(function, sequence):
-    # TODO: use min
-    values = list(sequence)
-    scores = [function(x) for x in values]
-    return values[scores.index(min(scores))]
-
-def configs(nodes):
-    if nodes is None:
-        return None
-    return list(map(lambda n: n.config, nodes))
+def safe_path(sequence, collision):
+    path = []
+    for q in sequence:
+        if collision(q):
+            break
+        path.append(q)
+    return path
 
 def elapsed_time(start_time):
     return time.time() - start_time
 
-def nearestNbr(tree, fixedNode, radius, extend_fn, collision_fn):
-    nearestNeighbors = []
-    for node in tree:
-        dist = node.distance(fixedNode)
-        if dist <= radius and node.check_direct(node, fixedNode, extend_fn, collision_fn):
-            nearestNeighbors.append(node)
-    return nearestNeighbors
+##################################################
+def argmin(function, sequence):
+    values = list(sequence)
+    scores = [function(x) for x in values]
+    return values[scores.index(min(scores))]
 
-def rrt_star(start, goal_sample, distance_fn, sample_fn, extend_fn, collision_fn, goal_test=lambda q: False,
-        goal_probability=.2, max_iterations=RRT_ITERATIONS, max_time=INF):
+def rrt_star(start, goal, distance_fn, sample_fn, extend_fn, collision_fn, radius,
+             max_time=INF, max_iterations=INF, goal_probability=.2):
     """
     :param start: Start configuration - conf
+    :param goal: End configuration - conf
     :param distance_fn: Distance function - distance_fn(q1, q2)->float
     :param sample_fn: Sample function - sample_fn()->conf
     :param extend_fn: Extension function - extend_fn(q1, q2)->[q', ..., q"]
     :param collision_fn: Collision function - collision_fn(q)->bool
-    :param max_iterations: Maximum number of iterations - int
     :param max_time: Maximum runtime - float
     :return: Path [q', ..., q"] or None if unable to find a solution
     """
+    # if collision_fn(start) or collision_fn(goal):
+    #     return None
+    nodes = [OptimalNode(start)]
+    goal_n = None
     start_time = time.time()
+    iteration = 0
+    while (elapsed_time(start_time) < max_time) and (iteration < max_iterations):
+        do_goal = goal_n is None and (iteration == 0 or random() < goal_probability)
+        s = goal if do_goal else sample_fn()
 
+        if iteration % PRINT_FREQUENCY == 0:
+            success = goal_n is not None
+            cost = goal_n.cost if success else INF
+            print('Iteration: {} | Time: {:.3f} | Success: {} | {} | Cost: {:.3f}'.format(
+                iteration, elapsed_time(start_time), success, do_goal, cost))
+        iteration += 1
 
-    if not callable(goal_sample):
-        g = goal_sample
-        goal_sample = lambda: g
-    nodes = [TreeNode(start)] # this is the tree where we're adding everything to 
-    for i in irange(max_iterations):
-        if elapsed_time(start_time) >= max_time:
-            break
-        goal = random() < goal_probability or i == 0
-        s = goal_sample() if goal else sample_fn() #nextnode
+        nearest = argmin(lambda n: distance_fn(n.config, s), nodes)
+        path = safe_path(extend_fn(nearest.config, s), collision_fn)
+        if len(path) == 0:
+            continue
+        new = OptimalNode(path[-1], parent=nearest, d=distance_fn(
+            nearest.config, path[-1]), path=path[:-1], iteration=iteration)
+        # if safe and do_goal:
+        if do_goal and (distance_fn(new.config, goal) < EPSILON):
+            goal_n = new
+            goal_n.set_solution(True)
 
-        last = argmin(lambda n: distance_fn(n.config, s), nodes)
-        for q in extend_fn(last.config, s):
-            # if collision_fn(q):
-            #     break
-            last = TreeNode(q, parent=last) #nearnode
+        neighbors = filter(lambda n: distance_fn(n.config, new.config) < radius, nodes)
+        nodes.append(new)
 
-            # computing the neighbors of last
-            nearbyVertices_one = nearestNbr(nodes, s, r_one)
-            nearbyVertices_two =  nearestNbr(nodes, s, r_two)
-
-            vex_low = None #neightboring node with the lowest cost 
-            near_costs = [] # list of the costs of neighbors
-
-            for vex in nearbyVertices_one:
-                near_costs.append(get_distance(vex, last)) # want to get the cost of this node 
-
-            if len(near_costs) == 0:
-                vex_low = last
-            else: 
-                vex_low_index = np.argmin(near_costs) 
-                vex_low = nearbyVertices_one[vex_low_index] # neighbor node with the lowest cost
-            
-            s_cost = 0
-            # Check whether to attach lowest cost node to the nextnode
-            if check_direct(vex_low, s, extend_fn, collision_fn):
-
-                # add to tree the connection between vex_low and s
-                nodes.append(vex_low)
-                s_cost = get_distance(s, vex_low) #there might need to be a vex_low cost but if we're using distance as cost......
-
-                # branching out to check if any neighbors of the connection we 
-                # just made are more efficient 
-                # rewiring the tree to make more efficient connections
-                for vex in nearbyVertices_two:
-                    if get_distance(s, vex) < s_cost:
-                        if check_direct(vex, s, extend_fn, collision_fn):
-                            # add to tree
-                            nodes.append(vex)
-
-                # check if we've reached the goal node to connect to the goal node 
-                if goal:
-                    return configs(last.retrace())
-
-        
-    return None
+        for n in neighbors:
+            d = distance_fn(n.config, new.config)
+            if (n.cost + d) < new.cost:
+                path = safe_path(extend_fn(n.config, new.config), collision_fn)
+                if (len(path) != 0) and (distance_fn(new.config, path[-1]) < EPSILON):
+                    new.rewire(n, d, path[:-1], iteration=iteration)
+        for n in neighbors:  
+            d = distance_fn(new.config, n.config)
+            if (new.cost + d) < n.cost:
+                path = safe_path(extend_fn(new.config, n.config), collision_fn)
+                if (len(path) != 0) and (distance_fn(n.config, path[-1]) < EPSILON):
+                    n.rewire(new, d, path[:-1], iteration=iteration)
+        if goal_n is not None and iteration >20:
+            print(iteration)
+            return goal_n.retrace()
+    if goal_n is None:
+        return None
+    return goal_n.retrace()
