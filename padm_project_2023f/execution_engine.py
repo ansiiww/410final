@@ -104,7 +104,7 @@ def extract_act(act):
     
     return action, loc, effectors
 
-def plan_base(act, world):
+def plan_base(act, world, algs):
     action, loc, obj = act
     print('THHIS IS THE ACTIVITY:', act)
     obj_body = ''
@@ -141,12 +141,12 @@ def plan_base(act, world):
 
     with LockRenderer():    
         bestPath = plan_base_motion(world, world.robot, init_conf, goal_pose, base_limits,
-                                    obstacles=world.static_obstacles)
+                                    obstacles=world.static_obstacles, algs=algs)
 
     print(init_conf, goal_pose, bestPath)                        
     return bestPath
 
-def plan_base_motion(world, body, start_conf, end_conf, base_limits, obstacles=[], direct=False,
+def plan_base_motion(world, body, start_conf, end_conf, base_limits, obstacles=[], algs='rrt', direct=False,
                      weights=1*np.ones(3), resolutions=0.05*np.ones(3),
                      max_distance=0.001, **kwargs):
     def sample_fn():
@@ -184,10 +184,11 @@ def plan_base_motion(world, body, start_conf, end_conf, base_limits, obstacles=[
         return path
 
     from motion_planner import solve
-    path = solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
+    print('BASE ALGS', algs)
+    path = solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, algs=algs, **kwargs)
     return path
 
-def plan_arm(act, world, attachments=[]):
+def plan_arm(act, world, attachments=[], algs = 'rrt'):
     print(act)
     action, loc, obj = act
     obj_body = ''
@@ -224,14 +225,14 @@ def plan_arm(act, world, attachments=[]):
 
     # breakpoint()
     with LockRenderer():
-        bestPath = plan_joint_motion(world.robot, world.arm_joints, goal_pose, obstacles=world.static_obstacles, attachments=attachments )
+        bestPath = plan_joint_motion(world.robot, world.arm_joints, goal_pose, obstacles=world.static_obstacles, attachments=attachments, algs = algs) 
     
     set_joint_positions(world.robot, world.arm_joints,start_conf)
 
     return bestPath
 
 
-def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
+def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[], algs = 'rrt',
                       self_collisions=True, disabled_collisions=set(),
                       weights=None, resolutions=None, max_distance=MAX_DISTANCE,
                       use_aabb=False, cache=True, custom_limits={}, **kwargs):
@@ -252,7 +253,7 @@ def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
     start_conf = get_joint_positions(body, joints)
 
     from motion_planner import solve
-    return solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
+    return solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, algs, **kwargs)
     
 def normalize_angle(angle):
     """Normalize an angle to the range [-pi, pi]."""
@@ -262,7 +263,7 @@ def normalize_angle(angle):
         angle += 2 * np.pi
     return angle
     
-def execute_act(act, world, id=0, rrt=True):
+def execute_act(act, world, id=0, algs='rrt'):
     print(act)
     tool_link = link_from_name(world.robot, 'panda_hand')
 
@@ -288,16 +289,18 @@ def execute_act(act, world, id=0, rrt=True):
 
 
     # breakpoint()
-    pre_path = plan_arm(('pre_grip', [], []), world)
-    breakpoint()
-    if rrt == False:
-        pre_path = optimize_path()
+    pre_path = plan_arm(('pre_grip', [], []), world, algs=algs)
+    # breakpoint()
+    time.sleep(0.5)
     executeArm(pre_path, world, action, tool_link, choose_grasp, gl, 'pre', id)
     print(pre_path)
 
-    breakpoint()
-    base_path = plan_base(act, world)
+    # breakpoint()
+    time.sleep(0.5)
+
+    base_path = plan_base(act, world, algs=algs)
     set_joint_positions(world.robot, world.base_joints, base_path[0])
+    time.sleep(0.5)
 
     
     print("base plan", base_path)
@@ -346,7 +349,7 @@ def execute_act(act, world, id=0, rrt=True):
         theta += angle/100
 
     if action == 'open':
-        pre_drawer_path = plan_arm(('pre_grip_drawer', [], []), world)
+        pre_drawer_path = plan_arm(('pre_grip_drawer', [], []), world, algs=algs)
         executeArm(pre_drawer_path, world, action, tool_link, choose_grasp, gl, 'pre', id)
 
     if action == 'open':
@@ -362,10 +365,14 @@ def execute_act(act, world, id=0, rrt=True):
             set_joint_positions(world.kitchen, world.kitchen_joints, [0,x,0])
             time.sleep(0.01)
     else:
-        arm_path = plan_arm(act, world)
-        executeArm(arm_path, world, action, tool_link, choose_grasp, gl, 'act', id)
+        arm_path = plan_arm(act, world, algs=algs)
+        time.sleep(0.5)
 
-    post_path = plan_arm(('post_grip', [], []), world)
+        executeArm(arm_path, world, action, tool_link, choose_grasp, gl, 'act', id)
+    time.sleep(0.5)
+    post_path = plan_arm(('post_grip', [], []), world, algs=algs)
+    time.sleep(0.5)
+
     executeArm(post_path, world, action, tool_link, choose_grasp, gl, 'post', id)
 
 def executeArm(path, world, action, tool_link, choose_grasp, gl, motion, id):
@@ -418,14 +425,16 @@ def execute_plan(plan):
     comparison_fn_rrt = (1.1400813978537498, 0.1787462256366006, -2.7093415878361893, -2.5805536889601135, -2.082868251419624, 0.6512893468496506,0.28984967118760885)
     
     conf = sample_fn()
-    set_joint_positions(world.robot, world.arm_joints, comparison_fn_rrt)
+    # set_joint_positions(world.robot, world.arm_joints, comparison_fn_rrt)
+    set_joint_positions(world.robot, world.arm_joints, conf)
+
     wait_for_user()
         # sGrasp = Grasp(world, 4, SIDE_GRASP, 100, sugar_grip, pre_grip) #need to be pose
     # breakpoint()
     
     for i in plan:
         act = extract_act(i)
-        execute_act(act, world, plan.index(i))
+        execute_act(act, world, plan.index(i), algs='rrt_star')
 
     print("THE END")
     wait_for_user()
