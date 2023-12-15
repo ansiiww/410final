@@ -1,6 +1,7 @@
 import time
 
 from rrt import rrt, INF, elapsed_time
+from rrt_star import rrt_star
 from collections import deque
 
 def bisect(sequence):
@@ -13,7 +14,6 @@ def bisect(sequence):
             continue
         index = int((lower + higher) / 2.)
         assert index not in indices
-        #if is_even(higher - lower):
         yield sequence[index]
         queue.extend([
             (lower, index-1),
@@ -31,14 +31,6 @@ def is_path(path):
 def get_pairs(sequence):
     sequence = list(sequence)
     return list(zip(sequence[:-1], sequence[1:]))
-
-# def get_distance(q1, q2):
-#     return np.linalg.norm(get_delta(q1, q2))
-
-# def compute_path_cost(path, cost_fn=get_distance):
-#     if not is_path(path):
-#         return INF
-#     return sum(cost_fn(*pair) for pair in get_pairs(path))
 
 def direct_path(start, goal, extend_fn, collision_fn):
     """
@@ -66,7 +58,7 @@ def check_direct(start, goal, extend_fn, collision_fn):
     return direct_path(start, goal, extend_fn, collision_fn)
 
 #################################################################
-def solve(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
+def solve(start, goal, distance_fn, sample_fn, extend_fn, collision_fn, algs = 'rrt',
           max_time=INF, max_iterations=INF, num_samples=100, **kwargs):
 
     start_time = time.time()
@@ -77,10 +69,18 @@ def solve(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
         return path
 
     remaining_time = max_time - elapsed_time(start_time)
-
-    path = rrt(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
-                max_iterations=max_iterations, max_time=remaining_time)
-    print("rrt path returned======================================", start, goal, path)
+    if algs == 'rrt':
+        print('rrt')
+        path = rrt(start, goal, distance_fn, sample_fn, extend_fn, collision_fn,
+                    max_iterations=max_iterations, max_time=remaining_time)
+    elif algs == 'rrt_star':
+        print('rrt_star')
+        path = rrt_star(start, goal, distance_fn, sample_fn, extend_fn, collision_fn, radius=0.1,
+                        max_iterations=max_iterations, max_time=remaining_time)
+        
+    end_time = time.time()
+    print(start_time, end_time, end_time-start_time) 
+    print("searched path returned======================================", start, goal, path)
     return path
 
 
